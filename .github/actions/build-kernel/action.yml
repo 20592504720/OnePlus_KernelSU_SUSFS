@@ -1567,8 +1567,6 @@ runs:
         CONFIG_IP6_NF_NAT=y
         CONFIG_IP6_NF_TARGET_MASQUERADE=y
         EOF
-        
-        patch -p1 -F 3 < "$KERNEL_PATCHES_FOLDER/common/IPv6_NAT_FIX.patch"
 
     - name: Add Droidspaces support
       shell: bash
@@ -1612,7 +1610,7 @@ runs:
         CONFIG_NETFILTER_XT_MATCH_RECENT=y
         CONFIG_USER_NS=y
         EOF
-
+        
         patch -p1 < "$KERNEL_PATCHES_FOLDER/common/droidspaces/0001-Guard-USER_NS-for-non-root-users.patch"
         
         if [ "${{ env.OP_RUST_BUILD }}" = "true" ]; then
@@ -1694,11 +1692,21 @@ runs:
         patch -p1 < "$KERNEL_PATCHES_FOLDER/common/fake_config.patch"
         
         OPTIONS=()
-
+        
+        if [ "$OP_BBR" = "true" ] || [ "$OP_BBR3" = "true" ]; then
+          OPTIONS+=("CONFIG_TCP_CONG_ADVANCED")
+        fi
+        
         if [ "$OP_DS" = "true" ]; then
           OPTIONS+=("CONFIG_USER_NS")
         fi
-
+        
+        if [ "$OP_IP_SET" = "true" ]; then
+          OPTIONS+=("CONFIG_IP6_NF_NAT")
+          OPTIONS+=("CONFIG_IP6_NF_TARGET_MASQUERADE")
+          OPTIONS+=("CONFIG_IP_SET")
+        fi
+        
         CONFIG_STRING="${OPTIONS[*]}"
         echo "CONFIG_FAKE_DISABLE=${CONFIG_STRING}" >> $GITHUB_ENV
 
@@ -1707,7 +1715,7 @@ runs:
       shell: bash
       env:
         PYTHONWARNINGS: "ignore:invalid escape sequence"
-        CCACHE_EXTRAFILES: "$COMMON_KERNEL_FOLDER/out/kernel/config_data.gz:$COMMON_KERNEL_FOLDER/out/kernel/config_data"
+        CCACHE_EXTRAFILES: "$COMMON_KERNEL_FOLDER/out/kernel/config_data.gz"
       run: |
         set -euo pipefail
         echo "::group::Build kernel with ccache optimization"
